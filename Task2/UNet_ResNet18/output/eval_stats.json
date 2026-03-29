@@ -1,0 +1,56 @@
+{
+  "model": "UNet_resnet18",
+  "backend": "torch",
+  "mean_dice": 0.8227,
+  "std_dice": 0.0785,
+  "n_train": 39,
+  "n_val": 8,
+  "crop_shape": [
+    128,
+    128,
+    128
+  ],
+  "hu_window": [
+    -175,
+    400
+  ],
+  "epochs_trained": 200,
+  "best_val_dice": 0.0,
+  "total_params": 42622289,
+  "weight_decay": 0.0005,
+  "num_samples": 1,
+  "per_scan": [
+    {
+      "scan_id": "be9fa3df918a",
+      "dice": 0.8312985897064209
+    },
+    {
+      "scan_id": "092c97ecec4b",
+      "dice": 0.7375283241271973
+    },
+    {
+      "scan_id": "ed66d74f6692",
+      "dice": 0.8768790364265442
+    },
+    {
+      "scan_id": "d86566fdb41c",
+      "dice": 0.9084304571151733
+    },
+    {
+      "scan_id": "2eb903f4f204",
+      "dice": 0.8909099102020264
+    },
+    {
+      "scan_id": "4d9723eef946",
+      "dice": 0.8658240437507629
+    },
+    {
+      "scan_id": "43ca4b1f6495",
+      "dice": 0.8059060573577881
+    },
+    {
+      "scan_id": "8781c0349102",
+      "dice": 0.6650001406669617
+    }
+  ]
+}
