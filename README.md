@@ -9,12 +9,6 @@
   <i>Machine Learning for Science (ML4SCI) / PREDICT</i>
 </p>
 
-<p align="center">
-  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/></a>
-  <a href="https://keras.io/"><img src="https://img.shields.io/badge/Keras_3-PyTorch_backend-red?logo=keras&logoColor=white" alt="Keras 3"/></a>
-  <a href="https://monai.io/"><img src="https://img.shields.io/badge/MONAI-1.3+-green?logo=data:image/png;base64," alt="MONAI"/></a>
-  <a href="https://github.com/Arjun-bhandary/PrediCT_Gsoc2026/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow" alt="License"/></a>
-</p>
 
 ---
 
