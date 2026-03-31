@@ -227,29 +227,7 @@ jupyter notebook "Task2/SegFormer_ mit_b1/train.ipynb"
 
 ---
 
-## GSoC 2026 — Proposed Project
 
-This evaluation work forms the foundation for the full GSoC project: **"Building and Comparing Segmentation Strategies for Coronary Artery Calcium."** The proposed project will extend this work with:
-
-- **nnU-Net baseline** as a self-configuring reference
-- **2.5D U-Net** with slice-attention fusion for inter-slice context
-- **Hybrid CNN-Mamba U-Net** for linear-complexity long-range reasoning
-- **DINO-LG pretrained encoder** leveraging self-supervised learning
-- **Agatston-weighted compound loss** linking segmentation gradients to clinical scoring
-- **Anatomical localization** assigning plaques to specific coronary arteries (LAD, LCX, RCA, LM)
-- **Automated Agatston scoring** with conformal uncertainty quantification
-
-For full details, see the [project proposal](./proposal.pdf).
-
----
-
-## Author
-
-**Arjun Bhandary**
-- 3rd year B.Tech, Electrical Engineering — IIT (ISM) Dhanbad
-- [GitHub](https://github.com/Arjun-bhandary) · [LinkedIn](https://www.linkedin.com/in/arjun-bhandary/) · [Kaggle](https://www.kaggle.com/arjunashokbhandary)
-
----
 
 ## Acknowledgments
 
@@ -259,8 +237,3 @@ For full details, see the [project proposal](./proposal.pdf).
 - [TotalSegmentator](https://github.com/wasserth/TotalSegmentator) for heart mask generation
 - [Google Summer of Code](https://summerofcode.withgoogle.com/) for the opportunity
 
----
-
-## License
-
-This project is open-source and available under the [MIT License](LICENSE).
