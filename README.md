@@ -22,6 +22,8 @@
 
 This repository contains the completed evaluation tasks for the **GSoC 2026 — ML4SCI / PREDICT** project: *"Building and Comparing Segmentation Strategies for Coronary Artery Calcium (CAC)."*
 
+Model weights can be found **[over here](https://drive.google.com/drive/folders/1X7FDS6VY8C3INQ8kbQ3gppBSfH7bSQUO?usp=sharing)**.
+
 The work is organized into two tasks:
 
 | Task | Description | Key Deliverable |
