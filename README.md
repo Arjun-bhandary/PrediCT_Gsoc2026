@@ -1,157 +1,270 @@
-# Sparse Autoencoder for Jet Classification
-
-This directory explores an alternative to Masked Autoencoding: a traditional **sparse autoencoder** with L1 sparsity and KL divergence regularization on the latent space.
-
----
-
-## Approach
-
-Instead of masking tokens and reconstructing them (MAE), the sparse autoencoder:
-
-1. **Encodes the full jet image** (no masking) into a latent representation
-2. **Decodes** back to reconstruct the original
-3. Adds **L1 sparsity** and **KL divergence** penalties on the latent activations to encourage a sparse, distributed internal representation
-
 <p align="center">
-  <img src="../assets/sparse_autoencoder_pipeline.png" alt="Sparse Autoencoder Pipeline" width="800"/>
-  <br/>
-  <em>Sparse Autoencoder: the full input is encoded (no masking), reconstructed, and regularized with L1 + KL penalties on the latent activations.</em>
+  <img src="https://developers.google.com/open-source/gsoc/resources/downloads/GSoC-Horizontal.svg" alt="GSoC Logo" width="400"/>
 </p>
 
-### Loss Function
+<h1 align="center">PrediCT — GSoC 2026 Evaluation Tasks</h1>
 
-The total pretraining loss combines three terms:
+<p align="center">
+  <b>Building and Comparing Segmentation Strategies for Coronary Artery Calcium</b><br/>
+  <i>Machine Learning for Science (ML4SCI) / PREDICT</i>
+</p>
+
+<p align="center">
+  <a href="https://www.python.org/"><img src="https://img.shields.io/badge/Python-3.10+-blue?logo=python&logoColor=white" alt="Python"/></a>
+  <a href="https://keras.io/"><img src="https://img.shields.io/badge/Keras_3-PyTorch_backend-red?logo=keras&logoColor=white" alt="Keras 3"/></a>
+  <a href="https://monai.io/"><img src="https://img.shields.io/badge/MONAI-1.3+-green?logo=data:image/png;base64," alt="MONAI"/></a>
+  <a href="https://github.com/Arjun-bhandary/PrediCT_Gsoc2026/blob/main/LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow" alt="License"/></a>
+</p>
+
+---
+
+## Overview
+
+This repository contains the completed evaluation tasks for the **GSoC 2026 — ML4SCI / PREDICT** project: *"Building and Comparing Segmentation Strategies for Coronary Artery Calcium (CAC)."*
+
+The work is organized into two tasks:
+
+| Task | Description | Key Deliverable |
+|------|-------------|-----------------|
+| **Task 1** (Common) | COCA dataset preprocessing & data loading pipeline | End-to-end DICOM → NIfTI pipeline with augmentation, stratified splits, and class-imbalance handling |
+| **Task 2** (Specific) | Heart segmentation from cardiac CT | Four trained models compared; best achieves **Dice = 0.9288** on held-out validation |
+
+---
+
+## Repository Structure
 
 ```
-L_total = L_recon (MSE) + λ_L1 · ||z||₁ + λ_KL · KL(ρ || ρ̂)
-```
-
-| Term | Purpose | Typical magnitude (epoch 1) |
-|:-----|:--------|:---------------------------:|
-| **L_recon (MSE)** | Faithful reconstruction of input features | ~0.014 |
-| **λ_L1 · ‖z‖₁** | Encourages sparse latent activations (few active units) | ~1e-6 |
-| **λ_KL · KL(ρ ‖ ρ̂)** | Pushes average activation ρ̂ toward target sparsity ρ | ~4e-6 |
-
-Where **ρ** is a target sparsity level (e.g., 0.05 — meaning each latent unit should be active ~5% of the time) and **ρ̂** is the observed average activation of each latent unit across the batch.
-
-### Architecture
-
-The encoder and decoder use the **same Sparse ResNet architecture** as the convolution-based models (see [`SparseConvolutions/README.md`](../SparseConvolutions/README.md)), but the pretraining objective is different:
-
-```
-                   MAE (SparseConvolutions/)          Sparse Autoencoder (this directory)
-                   ──────────────────────────         ────────────────────────────────────
-Input:             25% of active tokens (75% masked)  100% of active tokens (no masking)
-Pretext task:      Reconstruct masked tokens          Reconstruct all tokens
-Regularization:    None (implicit via masking)         L1 + KL on latent activations
-Loss:              MSE on masked positions only        MSE on all positions + L1 + KL
-```
-
-```
-Encoder (identical to Sparse ResNet encoder)
-┌─────────────────────────────────────────────────────────────────────┐
-│ Input: SparseConvTensor (N × 8, spatial 125×125)                    │
-│   ▼ SubMConv2d(8 → 64, 3×3) + BN + ReLU                            │
-│   ▼ Stage 1: 2× ResBlock(64)                                       │
-│   ▼ SparseConv2d(64 → 128, stride=2)   → 63×63                     │
-│   ▼ Stage 2: 2× ResBlock(128)                                      │
-│   ▼ SparseConv2d(128 → 256, stride=2)  → 32×32                     │
-│   ▼ Stage 3: 2× ResBlock(256)                                      │
-│   ▼ SparseConv2d(256 → 512, stride=2)  → 16×16                     │
-│   ▼ Stage 4: 2× ResBlock(512)                                      │
-│   ▼                                                                 │
-│   Latent z (N' × 512)  ← L1 and KL penalties applied here          │
-└─────────────────────────────────────────────────────────────────────┘
-
-Decoder (mirror of encoder using SparseInverseConv2d)
-┌─────────────────────────────────────────────────────────────────────┐
-│   ▼ SparseInverseConv2d(512 → 256)  → 32×32                        │
-│   ▼ 2× ResBlock(256)                                               │
-│   ▼ SparseInverseConv2d(256 → 128)  → 63×63                        │
-│   ▼ 2× ResBlock(128)                                               │
-│   ▼ SparseInverseConv2d(128 → 64)   → 125×125                      │
-│   ▼ 2× ResBlock(64)                                                │
-│   ▼ SubMConv2d(64 → 8, 1×1)                                        │
-│   ▼                                                                 │
-│   Reconstructed output (125×125 × 8)                                │
-└─────────────────────────────────────────────────────────────────────┘
+PrediCT_Gsoc2026/
+├── Task_1/                              # Common Task — COCA Preprocessing
+│   ├── COCA_task1.ipynb                 # Full preprocessing pipeline notebook
+│   ├── img.png                          # 9-panel dataset characterization figure
+│   └── postproc.png                     # Post-processing visualization
+│
+└── Task2/                               # Specific Task — Heart Segmentation
+    ├── SegFormer_ mit_b1/               # ★ Best model (Dice = 0.9288)
+    │   ├── train.ipynb                  #   Training notebook
+    │   └── output/
+    │       ├── eval_stats.json          #   Per-scan Dice scores
+    │       ├── training_curves.png      #   Loss & metric curves
+    │       └── *_pred.png              #   Prediction visualizations
+    │
+    ├── AttentionUNet_DenseNet121/        # Attention U-Net + DenseNet121 encoder
+    │   ├── train.ipynb
+    │   └── output/
+    │
+    ├── AttentionUnet_ResNet18/           # Attention U-Net + ResNet18 encoder
+    │   ├── train.ipynb
+    │   └── Output/
+    │
+    └── UNet_ResNet18/                    # Vanilla U-Net + ResNet18 encoder
+        ├── Train.ipynb
+        └── output/
 ```
 
 ---
 
-## Experiments
+## Task 1 — COCA Dataset Preprocessing
 
-### Sparse_ResNet/
+### Dataset
 
-Uses the Sparse ResNet encoder pretrained with the autoencoder objective (L1 + KL) instead of MAE.
+The [Stanford COCA dataset](https://stanfordaimi.azurewebsites.net/datasets/e8ca74dc-8dd4-4340-b7e7-861c141a9ac7) contains **787 gated coronary CT scans** with XML annotations providing per-lesion masks labeled by artery (LAD, LCX, RCA, LM).
 
-| Metric | Value |
-|:-------|:-----:|
-| **AUC** | 0.9341 |
-| **Accuracy** | 0.869 |
-| **F1** | 0.871 |
-| **1/FPR @ TPR=0.7** | 14.1 |
+### Pipeline
 
-This is the weakest-performing model in the comparison (**ΔAUC = −0.0268** vs. the best MAE model), suggesting that masking-based pretext tasks learn more transferable representations than reconstruction with sparsity regularization.
+The notebook `Task_1/COCA_task1.ipynb` implements a complete preprocessing pipeline:
 
-### dense_resnet_sae/
+1. **DICOM → NIfTI conversion** — Parses raw DICOM volumes via SimpleITK; extracts calcium annotations from plist-format XML using `cv2.fillPoly`; outputs paired image–mask NIfTI files.
 
-A **dense (non-sparse) ResNet autoencoder** baseline for comparison. Uses standard `nn.Conv2d` instead of `spconv.SubMConv2d`, operating on the full 125×125×8 grid including zero pixels.
+2. **Isotropic resampling** — Standardizes all volumes to **0.7 mm** isotropic spacing using `COCA_resampler.py`.
 
-```
-Dense Autoencoder (baseline)
-┌─────────────────────────────────────────────────────┐
-│ Input: Dense tensor (B × 8 × 125 × 125)             │
-│   ▼ nn.Conv2d(8 → 64, 3×3) + BN + ReLU              │
-│   ▼ Standard ResBlocks + MaxPool2d (stride=2)        │
-│   ▼ ...                                              │
-│   Latent → Decoder (ConvTranspose2d for upsampling)  │
-│   ▼ Reconstructed output (B × 8 × 125 × 125)        │
-└─────────────────────────────────────────────────────┘
+3. **Dataset characterization** — Comprehensive analysis across all 787 volumes:
+   - Sparsity analysis (positive voxel ratios)
+   - HU distributions (global and within annotated regions)
+   - Per-patient calcium burden quantification
+   - Voxel spacing variability
+   - Positive-slice ratios
+   - Results exported as CSV/JSON and visualized in a 9-panel figure
 
-Key difference: processes ALL 15,625 pixels per sample,
-including the ~90% that are zero — wasting computation.
-```
+4. **HU windowing** — Clips intensities to `[-175, 1500]` HU, retaining soft-tissue context while capturing the full dynamic range of calcified deposits.
 
----
+5. **Patient-level stratified split** — 70/15/15 train/val/test split, stratified by calcium burden category (zero, low, high) to ensure representative distribution.
 
-## Key Observation
+6. **Data augmentation** (HU-semantics-preserving):
+   - Left-right flipping, random rotations (±15°), elastic deformation
+   - Gaussian noise (σ = 0.02), small intensity shifts (±0.1)
+   - Colour jitter and vertical flipping excluded as non-physical for CT
 
-The sparse autoencoder's L1 and KL losses are **orders of magnitude smaller** than the reconstruction loss:
+7. **Class-imbalance handling** — 2:1 positive-to-negative patch ratio via MONAI's `RandCropByPosNegLabeld`, combined with Dice + weighted BCE loss.
 
-```
-Epoch 1 losses:
-  L_recon ≈ 0.014       (dominant)
-  L1      ≈ 0.000001    (negligible)
-  KL      ≈ 0.000004    (negligible)
-```
+8. **Dual data loaders**:
+   - **MONAI `CacheDataset`** — Caches preprocessed volumes in RAM for fast training
+   - **Lightweight PyTorch `Dataset`** — Fallback with positive-biased patch extraction
 
-This suggests the regularization terms may be **too weak** to meaningfully shape the learned representations. The λ coefficients were not extensively tuned — increasing `λ_L1` and `λ_KL` by 2–3 orders of magnitude could potentially improve results and make the sparse autoencoder more competitive with MAE. This is a promising direction for future work.
+### Preprocessing Summary
 
-### Why MAE outperforms this approach
+| Parameter | Value |
+|-----------|-------|
+| Total scans processed | 787 |
+| Resampled spacing | 0.7 mm isotropic |
+| HU window | [-175, 1500] |
+| Train / Val / Test | 550 / 118 / 119 |
+| Split strategy | Patient-level, stratified by calcium burden |
+| Patch size | 160 × 160 × 160 |
+| Pos:Neg sampling ratio | 2:1 |
+| Loss function | Dice + Weighted BCE |
 
-| Aspect | MAE | Sparse Autoencoder |
-|:-------|:----|:-------------------|
-| **Information bottleneck** | Strong — only 25% of tokens visible | Weak — full input available |
-| **Pretext difficulty** | Hard — must infer missing structure | Easy — input ≈ output |
-| **Representation quality** | Learns contextual, predictive features | Learns identity-like mappings |
-| **Regularization** | Implicit (masking forces generalization) | Explicit but undertuned (L1 + KL) |
+### Known Data Challenge
 
-The masking in MAE creates a much stronger information bottleneck, forcing the encoder to learn meaningful spatial and channel relationships. The sparse autoencoder, with its full-input-available setup and weak regularization, tends toward learning near-identity mappings that don't transfer as well to classification.
+The COCA XML `ImageIndex` field does not correspond to the physical slice ordering used by SimpleITK (previously noted by the Stanford CS230 group), causing mask-to-slice misalignment. This is documented in the notebook with a proposed resolution via `SOPInstanceUID` or `ImagePositionPatient` z-coordinate matching.
 
 ---
 
-## File Structure
+## Task 2 — Heart Segmentation
 
+### Objective
+
+Train a model to segment the whole heart from cardiac CT scans, achieving a minimum **Dice score of 0.85** on a held-out validation set.
+
+### Ground Truth Generation
+
+Heart masks were generated by running [TotalSegmentator](https://github.com/wasserth/TotalSegmentator) on **47 COCA scans** and binarizing the whole-heart label.
+
+### Models Compared
+
+All four models were trained using the [medic-ai](https://github.com/innat/medic-ai) library with **Keras 3 (PyTorch backend)** on a Tesla T4 GPU.
+
+**Common training setup:**
+- 47 scans (39 train / 8 validation)
+- HU window: `[-175, 400]`
+- Loss: BinaryDiceCE
+- Optimizer: AdamW (weight decay = 5×10⁻⁴)
+- LR schedule: Warmup cosine (warmup epochs → peak LR, cosine decay)
+- Inference: Sliding window (overlap 0.5, Gaussian weighting)
+
+| # | Model | Encoder | Params | Crop Size | Epochs | Mean Dice | Std |
+|---|-------|---------|--------|-----------|--------|-----------|-----|
+| 1 | **SegFormer** | MiT-B1 | **16.6M** | 160³ | 400 | **0.9288** | 0.0182 |
+| 2 | Attention U-Net | DenseNet121 | 31.9M | 128³ | 400 | 0.8947 | 0.0576 |
+| 3 | Attention U-Net | ResNet18 | 42.9M | 128³ | 200 | 0.8782 | 0.0417 |
+| 4 | U-Net | ResNet18 | 42.6M | 128³ | 200 | 0.8227 | 0.0785 |
+
+### Best Model — SegFormer (MiT-B1)
+
+The SegFormer with a Mix Transformer B1 encoder achieves the highest Dice score (**0.9288**) with the fewest parameters (**16.6M**), demonstrating strong accuracy-to-parameter efficiency.
+
+**Per-scan validation results:**
+
+| Scan ID | Dice Score |
+|---------|------------|
+| be9fa3df918a | 0.9487 |
+| 2eb903f4f204 | 0.9447 |
+| 43ca4b1f6495 | 0.9417 |
+| ed66d74f6692 | 0.9352 |
+| 8781c0349102 | 0.9294 |
+| d86566fdb41c | 0.9256 |
+| 092c97ecec4b | 0.9164 |
+| 4d9723eef946 | 0.8884 |
+
+All 8 validation scans exceed **0.88** Dice. The train–validation gap of 0.02 indicates minimal overfitting despite only 39 training scans.
+
+### Key Observations
+
+- **SegFormer outperforms all U-Net variants** while using 2–2.5× fewer parameters, suggesting that the Mix Transformer encoder captures cardiac anatomy more efficiently than CNN-based encoders for this task.
+- **Attention gates help** — both Attention U-Net variants outperform the vanilla U-Net, confirming that learned spatial attention benefits heart segmentation.
+- **DenseNet121 > ResNet18** as an encoder backbone when paired with attention gates, likely due to denser feature reuse.
+- **Longer training matters** — models trained for 400 epochs consistently outperform those trained for 200 epochs.
+
+---
+
+## Getting Started
+
+### Prerequisites
+
+- Python 3.10+
+- CUDA-compatible GPU (tested on Tesla T4)
+- ~10 GB disk space for the COCA dataset subset
+
+### Installation
+
+```bash
+git clone https://github.com/Arjun-bhandary/PrediCT_Gsoc2026.git
+cd PrediCT_Gsoc2026
+
+pip install nibabel matplotlib seaborn scikit-learn monai tqdm pandas
+pip install git+https://github.com/innat/medic-ai.git
 ```
-├── Sparse_ResNet/
-│   ├── pretrain.py              # Autoencoder pretraining (L1 + KL)
-│   ├── finetune.py              # Supervised fine-tuning
-│   ├── pretrain_history.json    # Per-epoch losses (total, recon, L1, KL)
-│   ├── finetune_history.json
-│   ├── finetune_metrics.json
-│   └── *.jpg                    # Training plots
-└── dense_resnet_sae/
-    ├── pretrain.py              # Dense autoencoder baseline
-    └── finetune.py
+
+### Running the Notebooks
+
+**Task 1 — Preprocessing:**
+```bash
+jupyter notebook Task_1/COCA_task1.ipynb
 ```
+> Update `DATA_DIR` in the configuration cell to point to your local COCA dataset (NIfTI format from `COCA_processor.py` and `COCA_resampler.py`).
+
+**Task 2 — Heart Segmentation:**
+```bash
+jupyter notebook "Task2/SegFormer_ mit_b1/train.ipynb"
+```
+> Update `CT_DIR` and `GT_DIR` to point to your cardiac CT inputs and TotalSegmentator ground-truth masks respectively.
+
+### Data Preparation
+
+1. Download the [COCA dataset](https://stanfordaimi.azurewebsites.net/datasets/e8ca74dc-8dd4-4340-b7e7-861c141a9ac7) from Stanford AIMI.
+2. Run `COCA_processor.py` to convert DICOM volumes + XML annotations → NIfTI pairs.
+3. Run `COCA_resampler.py` to resample to 0.7 mm isotropic spacing.
+4. For Task 2, run [TotalSegmentator](https://github.com/wasserth/TotalSegmentator) on a subset of scans to generate whole-heart ground-truth masks.
+
+---
+
+## Dependencies
+
+| Package | Purpose |
+|---------|---------|
+| [Keras 3](https://keras.io/) + PyTorch backend | Model training & inference |
+| [medic-ai](https://github.com/innat/medic-ai) | SegFormer, U-Net, Attention U-Net architectures |
+| [MONAI](https://monai.io/) | Medical image transforms, data loading, augmentation |
+| [nibabel](https://nipy.org/nibabel/) | NIfTI file I/O |
+| [SimpleITK](https://simpleitk.org/) | DICOM processing & resampling |
+| [scikit-learn](https://scikit-learn.org/) | Stratified splitting |
+| matplotlib / seaborn | Visualization |
+
+---
+
+## GSoC 2026 — Proposed Project
+
+This evaluation work forms the foundation for the full GSoC project: **"Building and Comparing Segmentation Strategies for Coronary Artery Calcium."** The proposed project will extend this work with:
+
+- **nnU-Net baseline** as a self-configuring reference
+- **2.5D U-Net** with slice-attention fusion for inter-slice context
+- **Hybrid CNN-Mamba U-Net** for linear-complexity long-range reasoning
+- **DINO-LG pretrained encoder** leveraging self-supervised learning
+- **Agatston-weighted compound loss** linking segmentation gradients to clinical scoring
+- **Anatomical localization** assigning plaques to specific coronary arteries (LAD, LCX, RCA, LM)
+- **Automated Agatston scoring** with conformal uncertainty quantification
+
+For full details, see the [project proposal](./proposal.pdf).
+
+---
+
+## Author
+
+**Arjun Bhandary**
+- 3rd year B.Tech, Electrical Engineering — IIT (ISM) Dhanbad
+- [GitHub](https://github.com/Arjun-bhandary) · [LinkedIn](https://www.linkedin.com/in/arjun-bhandary/) · [Kaggle](https://www.kaggle.com/arjunashokbhandary)
+
+---
+
+## Acknowledgments
+
+- **ML4SCI / PREDICT** mentors: K. Butler, A.M. Love, S. Gleyzer (Univ. of Alabama); H. Hahn (Kettering Health)
+- [Stanford AIMI](https://aimi.stanford.edu/) for the COCA dataset
+- [medic-ai](https://github.com/innat/medic-ai) by Mohammed Innat for the segmentation architectures
+- [TotalSegmentator](https://github.com/wasserth/TotalSegmentator) for heart mask generation
+- [Google Summer of Code](https://summerofcode.withgoogle.com/) for the opportunity
+
+---
+
+## License
+
+This project is open-source and available under the [MIT License](LICENSE).
