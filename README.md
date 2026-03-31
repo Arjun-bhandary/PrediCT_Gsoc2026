@@ -225,15 +225,5 @@ jupyter notebook "Task2/SegFormer_ mit_b1/train.ipynb"
 | [scikit-learn](https://scikit-learn.org/) | Stratified splitting |
 | matplotlib / seaborn | Visualization |
 
----
 
-
-
-## Acknowledgments
-
-- **ML4SCI / PREDICT** mentors: K. Butler, A.M. Love, S. Gleyzer (Univ. of Alabama); H. Hahn (Kettering Health)
-- [Stanford AIMI](https://aimi.stanford.edu/) for the COCA dataset
-- [medic-ai](https://github.com/innat/medic-ai) by Mohammed Innat for the segmentation architectures
-- [TotalSegmentator](https://github.com/wasserth/TotalSegmentator) for heart mask generation
-- [Google Summer of Code](https://summerofcode.withgoogle.com/) for the opportunity
 
